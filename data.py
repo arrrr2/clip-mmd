@@ -4,8 +4,9 @@ from torch.utils.data import Dataset
 import glob
 import os.path as osp
 import numpy as np
+from typing import Tuple
 
-def resizer(img:Image.Image, size:tuple[int, int], interpolation="bicubic"):
+def resizer(img:Image.Image, size: Tuple[int, int], interpolation="bicubic"):
     resamplers = {
         'nearest': Image.Resampling.NEAREST,
         'bilinear': Image.Resampling.BILINEAR,
@@ -34,7 +35,7 @@ def resizer(img:Image.Image, size:tuple[int, int], interpolation="bicubic"):
 
 class folder_dataset(Dataset):
     img_ext = ['jpg', 'jpeg', 'png', 'bmp', 'tiff', 'gif', 'webp', 'avif', 'heic', 'jxl']
-    def __init__(self, folder:str, size:tuple[int, int], interpolation="bicubic"):
+    def __init__(self, folder:str, size:Tuple[int, int], interpolation="bicubic"):
         self.files = []
         for ext in self.img_ext:
             self.files += glob.glob(osp.join(folder, f"/**/*.{ext}"),recursive=True)
@@ -52,7 +53,7 @@ class folder_dataset(Dataset):
         return img
 
 class batched_dataset(Dataset):
-    def __init__(self, path:str, size:tuple[int, int], interpolation="bicubic"):
+    def __init__(self, path:str, size:Tuple[int, int], interpolation="bicubic"):
         file_ext = path.split('.')[-1]
         if 'np' in file_ext:
             self.data = torch.from_numpy(np.load(path))

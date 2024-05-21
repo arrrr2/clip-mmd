@@ -113,6 +113,7 @@ class CMMD():
             else:
                 raise ValueError("Invalid type")
         return x, x_computed
+    
     def execute(self, x, y):
         assert self.extractor is not None, "Extractor is not initialized"
         x, x_computed = self.prepare_input(x)

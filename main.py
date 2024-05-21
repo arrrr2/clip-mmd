@@ -1,4 +1,54 @@
-# TODO: add calc(a, b) -> read, detect type, and calculate
-# TODO: test
-# TODO: update to pypi
+import torch
+import argparse
 
+from logic import CMMD  
+
+def main():
+    parser = argparse.ArgumentParser(description="Command Line Interface for CMMD calculations and feature extraction.")
+    parser.add_argument('data_path_1', type=str, help='Path to the first data folder or file')
+    parser.add_argument('data_path_2', type=str, nargs='?', default=None, help='Path to the second data folder or file')
+    parser.add_argument('--cuda', action='store_true', help='Flag to use CUDA')
+    parser.add_argument('--gpus', type=str, default='', help='Comma-separated list of GPUs to use (e.g., 0,1,2,3)')
+    parser.add_argument('--no-mem-save', action='store_false', help='Flag to disable memory-saving features')
+    parser.add_argument('--batch-size', type=int, default=32, help='Batch size for processing')
+    parser.add_argument('--calculator-bs', type=int, default=128, help='Batch size for the CMMD calculator')
+    parser.add_argument('--model', type=str, default='openai/clip-vit-large-patch14-336', help='Model to use for feature extraction')
+    parser.add_argument('--extract-mode', action='store_true', help='Flag to set the mode to feature extraction')
+    parser.add_argument('--size', type=int, default=336, help='Image size for model input')
+    parser.add_argument('--interpolation', type=str, default='bicubid', help='Interpolation algorithm for resampling an image')
+
+    args = parser.parse_args()
+
+    # Initialize the CMMD processor
+    if args.gpus != '': gpus = [int(i) for i in args.gpus.split(',')]
+    else: gpus = None
+
+
+
+    processor = CMMD(True, extract_model=args.model, 
+                     img_size=(args.size,) * 2, device="cuda" if args.cuda else 'cpu', 
+                     data_parallel= (gpus is not None), device_ids=gpus, interpolation=args.interpolation, 
+                     feat_bs=args.batch_size, num_workers=args.num_workers, compute_bs=args.calculator_bs, 
+                     low_mem=args.no_mem_save, original=args.original)
+
+    if args.extract_mode:
+        if args.data_path_2:
+            # Output path provided, extract features to specified path
+            x, x_computed = processor.prepare_input(args.data_path_1)
+            features = processor.calculate_statics(x)
+            torch.save(features, args.data_path_2)
+        else:
+            # No output path provided, default action needed
+            print("Error: Output path for extracted features not provided.")
+            exit(1)
+    elif args.data_path_2:
+        # Calculate CMMD between two datasets
+        cmmd_value = processor.execute(args.data_path_1, args.data_path_2)
+        print(f"CMMD Value: {cmmd_value}")
+    else:
+        # Only one data path provided, assume generation of pre-extracted features without explicit extraction mode
+        print("Error: Second data path or extraction mode flag required.")
+        exit(1)
+
+if __name__ == "__main__":
+    main()
