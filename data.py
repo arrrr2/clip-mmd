@@ -81,11 +81,3 @@ class batched_dataset(Dataset):
 def get_stastics(path: str):
     return torch.load(path)
 
-class customize_collect_fn_dataset(Dataset):
-    def __init__(self, collect_fn, length):
-        self.collect_fn = collect_fn
-        self.length = length
-    def __len__(self):
-        return self.length
-    def __getitem__(self, idx):
-        return self.collect_fn(idx)

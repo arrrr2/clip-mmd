@@ -4,7 +4,8 @@ from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 import data
 import calculation
-
+import numpy as np
+import os.path as osp
 
 class extractor():
     def __init__(self,
@@ -36,12 +37,13 @@ class extractor():
 
 
 class CMMD():
-    def __init__(self, extract_model="openai/clip-vit-large-patch14-336", img_size=(336, 336), 
+    def __init__(self, infer=True,
+                    extract_model="openai/clip-vit-large-patch14-336", img_size=(336, 336), 
                     device="cuda", data_parallel=False, device_ids=[0], interpolation="bicubic",
                     feat_bs=64, num_workers=8, compute_bs=256, low_mem=True,
                     original=False
                     ):
-        self.extractor = extractor(extract_model, device, data_parallel, device_ids)
+        self.extractor = extractor(extract_model, device, data_parallel, device_ids) if infer else None
         self.feat_bs = feat_bs
         self.img_size = img_size
         self.interpolation = interpolation
@@ -54,14 +56,13 @@ class CMMD():
         loader = DataLoader(dataset, batch_size=self.feat_bs, num_workers=self.num_workers)
         return loader
     
-    def prepare_npz(self, data_path:str):
+    def prepare_pack(self, data_path:str):
         dataset = data.batched_dataset(data_path, self.img_size, self.interpolation)
         loader = DataLoader(dataset, batch_size=self.feat_bs, num_workers=self.num_workers)
         return loader
     
-    def prepare_collect_fn(self, collect_fn):
-        dataset = data.customize_collect_fn_dataset(collect_fn)
-        loader = DataLoader(dataset, batch_size=self.feat_bs, num_workers=self.num_workers)
+    def prepare_custom_dataset(self, custom_dataset):
+        loader = DataLoader(custom_dataset, batch_size=self.feat_bs, num_workers=self.num_workers)
         return loader
         
     def calculate_statics(self, loader):
@@ -79,3 +80,49 @@ class CMMD():
     
     def get_prepared_statics(self, data_path:str):
         return data.get_stastics(data_path)
+
+    def parse_file(self, file_path:str):
+        if osp.isdir(file_path):
+            return self.prepare_folder(file_path), "folder"
+        elif file_path.endswith('.npz', 'npy'):
+            data = np.load(file_path)
+            torch_data = torch.from_numpy(data)
+        elif file_path.endswith('.pt', '.pth', '.pkl'):
+            torch_data = torch.load(file_path)
+        data_shape = torch_data.shape
+        if len(data_shape) == 2:
+            return torch_data, "stastics"
+        elif len(data_shape) == 4:
+            del torch_data
+            return self.pack(file_path), "pack"
+        raise ValueError("Invalid file format")
+    
+    def prepare_input(self, x):
+        x_computed = False
+        if isinstance(x, Dataset):
+            x = self.prepare_custom_dataset(x)
+        else:
+            x, x_type = self.parse_file(x)
+            if x_type == "pack":
+                x = self.prepare_pack(x)
+            elif x_type == "folder":
+                x = self.prepare_folder(x)
+            elif x_type == "stastics":
+                x = self.calculate_statics(x)
+                x_computed = True
+            else:
+                raise ValueError("Invalid type")
+        return x, x_computed
+    def execute(self, x, y):
+        assert self.extractor is not None, "Extractor is not initialized"
+        x, x_computed = self.prepare_input(x)
+        y, y_computed = self.prepare_input(y)
+        if not x_computed:
+            x = self.calculate_statics(x)
+        if not y_computed:
+            y = self.calculate_statics(y)
+        return self.calculate_mmd(x, y)
+        
+
+
+    
