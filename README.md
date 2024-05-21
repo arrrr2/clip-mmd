@@ -1,5 +1,5 @@
 # efficient-CMMD-pytorch
-
+(Under construction.)
 An unofficial implementation of [Rethinking FID: Towards a Better Evaluation Metric for Image Generation](https://arxiv.org/abs/2401.09603). Uses Transformers on PyTorch.
 
 ### Features
