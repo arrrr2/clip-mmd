@@ -1,4 +1,5 @@
 import setuptools
+from setuptools import find_packages
 
 if __name__=="__main__":
 
@@ -10,7 +11,9 @@ if __name__=="__main__":
         version="0.0.1",
         author="arr2",
         author_email="whnahengyuan@gmail.com",
-        description="",
+        packages=find_packages(),
+        description="CLIP Maximum Mean Discrepancy (CMMD) for evaluating generative models",
+        license='Apache License 2.0',
         long_description=long_description,
         long_description_content_type="text/markdown",
         install_requires=[
@@ -24,12 +27,15 @@ if __name__=="__main__":
             "requests",
 
         ],
-        url="https://github.com/GaParmar/clean-fid",
-        packages=['clip-mmd'],
         include_package_data=True,
         classifiers=[
             "Programming Language :: Python :: 3",
-            "License :: OSI Approved :: BSD License",
+            "License :: OSI Approved :: Apache Software License",
             "Operating System :: OS Independent",
         ],
+        entry_points={
+            'console_scripts': [
+                'clip-mmd=clip_mmd.cli:main', 
+            ],
+        },
     )
