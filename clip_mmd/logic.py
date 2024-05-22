@@ -2,8 +2,8 @@ from transformers import CLIPImageProcessor, CLIPVisionModelWithProjection
 import torch
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
-import data
-import calculation
+import clip_mmd.data as data
+import clip_mmd.calculation as calculation
 import numpy as np
 import os.path as osp
 from tqdm import tqdm

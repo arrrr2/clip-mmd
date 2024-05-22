@@ -1,7 +1,7 @@
 import torch
 import argparse
 
-from logic import CMMD  
+from clip_mmd.logic import CMMD  
 
 def main():
     parser = argparse.ArgumentParser(description="Command Line Interface for CMMD calculations and feature extraction.")
