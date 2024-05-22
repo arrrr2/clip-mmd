@@ -36,10 +36,12 @@ def resizer(img:Image.Image, size: Tuple[int, int], interpolation="bicubic"):
 class folder_dataset(Dataset):
     img_ext = ['jpg', 'jpeg', 'png', 'bmp', 'tiff', 'gif', 'webp', 'avif', 'heic', 'jxl']
     def __init__(self, folder:str, size:Tuple[int, int], interpolation="bicubic"):
-        self.files = []
-        for ext in self.img_ext:
-            self.files += glob.glob(osp.join(folder, f"/**/*.{ext}"),recursive=True)
-            self.files += glob.glob(osp.join(folder, f"/**/.{ext.upper()}"),recursive=True)
+        
+        all_files = glob.glob(osp.join(folder, "**", "*"), recursive=True)
+        self.files = [file for file in all_files if osp.splitext(file)[1][1:].lower() in self.img_ext]
+        
+        self.size = size
+        self.interpolation = interpolation
         self.size = size
         self.interpolation = interpolation
 
@@ -53,12 +55,8 @@ class folder_dataset(Dataset):
         return img
 
 class batched_dataset(Dataset):
-    def __init__(self, path:str, size:Tuple[int, int], interpolation="bicubic"):
-        file_ext = path.split('.')[-1]
-        if 'np' in file_ext:
-            self.data = torch.from_numpy(np.load(path))
-        else:
-            self.data = torch.load(path)
+    def __init__(self, data, size:Tuple[int, int], interpolation="bicubic"):
+        self.data = data
         self.size = size
         self.interpolation = interpolation
         if self.data.shape[-1] == 3:
@@ -70,8 +68,7 @@ class batched_dataset(Dataset):
         img: torch.Tensor = self.data[idx]
         if img.dtype == torch.uint8:
             img = img.permute(1, 2, 0).numpy()
-            img = resizer(Image.fromarray(img), self.size, self.interpolation)
-        if img.dtype == torch.float32:
+        elif img.dtype == torch.float32:
             img = img.permute(1, 2, 0).numpy()
             if self.pix_range[0] < 1.01:
                 img = (img * 255 + 0.5).round().to(torch.uint8).permute(1,2,0).numpy()

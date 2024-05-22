@@ -120,6 +120,6 @@ def mmd_efficient(x, y, device='cpu', precision=torch.float32, low_mem=False, co
     
     mmd_value = (_SCALE * (k_xx + k_yy - 2 * k_xy)).cpu()
 
-    return mmd_value
+    return mmd_value.item()
 
 

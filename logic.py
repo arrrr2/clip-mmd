@@ -6,6 +6,9 @@ import data
 import calculation
 import numpy as np
 import os.path as osp
+from tqdm import tqdm
+torch.backends.cuda.matmul.allow_tf32 = False
+torch.backends.cudnn.allow_tf32 = False
 
 class extractor():
     def __init__(self,
@@ -17,20 +20,22 @@ class extractor():
         self.data_parallel = data_parallel
         self.model = CLIPVisionModelWithProjection.from_pretrained(model_name).to(device)
         if data_parallel:
-            self.model = torch.nn.DataParallel(self.model, device_ids=device_ids)
+            
+            self.model = torch.nn.DataParallel(self.model.to(torch.device('cuda', device_ids[0])), device_ids=device_ids)
         self.processor = CLIPImageProcessor.from_pretrained(model_name)
         self.processor.do_rescale=False
         self.processor.do_center_crop=False
         self.processor.do_normalize=True
         self.processor.do_resize=False
         self.processor.do_convert_rgb=False
+        self.holder = torch.device('cuda', device_ids[0]) if data_parallel else torch.device('cuda')
         self.model.eval()
         
 
     @torch.no_grad()
     def __call__(self, img:torch.Tensor):
         inputs = self.processor(images=img, return_tensors="pt")
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        inputs = {k: v.to(self.holder) for k, v in inputs.items()}
         features = self.model(**inputs).image_embeds.cpu()
         features /= torch.linalg.norm(features, axis=-1, keepdims=True)
         return features
@@ -50,7 +55,9 @@ class CMMD():
         self.compute_bs = compute_bs
         self.low_mem = low_mem
         self.num_workers = num_workers
+        self.device=device
         self.original = original
+        self.first_dev = 0 if device_ids is None else device_ids[0]
     def prepare_folder(self, data_folder:str):
         dataset = data.folder_dataset(data_folder, self.img_size, self.interpolation)
         loader = DataLoader(dataset, batch_size=self.feat_bs, num_workers=self.num_workers)
@@ -67,34 +74,39 @@ class CMMD():
         
     def calculate_statics(self, loader):
         features = []
-        for batch in loader:
+        for batch in tqdm(loader, leave=False):
             features.append(self.extractor(batch).cpu())
-        features = torch.stack(features, dim=0)
+        features = torch.cat(features, dim=0)
         return features
     
     def calculate_mmd(self, x, y):
         if self.original:
             return calculation.mmd_efficient(x, y)
         else:
-            return calculation.mmd_efficient(x, y, low_mem=self.low_mem, coeff_bs=self.compute_bs)
+            return calculation.mmd_efficient(x, y, low_mem=self.low_mem, coeff_bs=self.compute_bs, device=self.device)
     
     def get_prepared_statics(self, data_path:str):
         return data.get_stastics(data_path)
 
-    def parse_file(self, file_path:str):
-        if osp.isdir(file_path):
-            return self.prepare_folder(file_path), "folder"
-        elif file_path.endswith('.npz', 'npy'):
-            data = np.load(file_path)
-            torch_data = torch.from_numpy(data)
-        elif file_path.endswith('.pt', '.pth', '.pkl'):
-            torch_data = torch.load(file_path)
+    def parse_file(self, input):
+        if isinstance(input, str):
+            if osp.isdir(input):
+                return input, "folder"
+            elif input.endswith(('.npz', 'npy')):
+                data = np.load(input)
+                torch_data = torch.from_numpy(data)
+            elif input.endswith(('.pt', '.pth', '.pkl')):
+                torch_data = torch.load(input)
+        elif isinstance(input, np.ndarray):
+            torch_data = torch.from_numpy(input)
+        elif not isinstance(input, torch.Tensor): 
+            raise TypeError("Not recognized data content")
+        else: torch_data = input
         data_shape = torch_data.shape
         if len(data_shape) == 2:
             return torch_data, "stastics"
         elif len(data_shape) == 4:
-            del torch_data
-            return self.pack(file_path), "pack"
+            return torch_data, "pack"
         raise ValueError("Invalid file format")
     
     def prepare_input(self, x):
@@ -108,7 +120,6 @@ class CMMD():
             elif x_type == "folder":
                 x = self.prepare_folder(x)
             elif x_type == "stastics":
-                x = self.calculate_statics(x)
                 x_computed = True
             else:
                 raise ValueError("Invalid type")

@@ -7,15 +7,16 @@ def main():
     parser = argparse.ArgumentParser(description="Command Line Interface for CMMD calculations and feature extraction.")
     parser.add_argument('data_path_1', type=str, help='Path to the first data folder or file')
     parser.add_argument('data_path_2', type=str, nargs='?', default=None, help='Path to the second data folder or file')
-    parser.add_argument('--cuda', action='store_true', help='Flag to use CUDA')
+    parser.add_argument('--no-cuda', action='store_false', help='Flag to use CUDA')
     parser.add_argument('--gpus', type=str, default='', help='Comma-separated list of GPUs to use (e.g., 0,1,2,3)')
     parser.add_argument('--no-mem-save', action='store_false', help='Flag to disable memory-saving features')
     parser.add_argument('--batch-size', type=int, default=32, help='Batch size for processing')
     parser.add_argument('--calculator-bs', type=int, default=128, help='Batch size for the CMMD calculator')
     parser.add_argument('--model', type=str, default='openai/clip-vit-large-patch14-336', help='Model to use for feature extraction')
+    parser.add_argument('--num-workers', type=int, default=8, help='Numbers of dataloader workers')
     parser.add_argument('--extract-mode', action='store_true', help='Flag to set the mode to feature extraction')
     parser.add_argument('--size', type=int, default=336, help='Image size for model input')
-    parser.add_argument('--interpolation', type=str, default='bicubid', help='Interpolation algorithm for resampling an image')
+    parser.add_argument('--interpolation', type=str, default='bicubic', help='Interpolation algorithm for resampling an image')
 
     args = parser.parse_args()
 
@@ -26,10 +27,10 @@ def main():
 
 
     processor = CMMD(True, extract_model=args.model, 
-                     img_size=(args.size,) * 2, device="cuda" if args.cuda else 'cpu', 
+                     img_size=(args.size,) * 2, device="cuda" if args.no_cuda else 'cpu', 
                      data_parallel= (gpus is not None), device_ids=gpus, interpolation=args.interpolation, 
                      feat_bs=args.batch_size, num_workers=args.num_workers, compute_bs=args.calculator_bs, 
-                     low_mem=args.no_mem_save, original=args.original)
+                     low_mem=args.no_mem_save)
 
     if args.extract_mode:
         if args.data_path_2:
