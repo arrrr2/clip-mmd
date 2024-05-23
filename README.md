@@ -10,7 +10,7 @@ An unofficial implementation of [Rethinking FID: Towards a Better Evaluation Met
 
 ### Comparison
 Measure time (second) of calculation. Cuda is on single V100.
-|n, m, dim|original|efficient|(by row)|(cuda)|(cuda + by row)|
+|n, m, dim|original(torch)|remove duplication|(blocking)|(cuda)|(cuda + blocking)|
 |-|-|-|-|-|-|
 2048, 16384, 768|1.379|1.142|0.421|0.460|0.164|
 16384, 16384, 768|3.312|2.764|1.137|0.567|0.391|
@@ -70,8 +70,8 @@ OR directly use it:
 
 ```python
 from clip_mmd import logic
-prep = logic.CMMD(data_parallel=True, device=[2,3,4,5])
-distance = prep.execute('path/to/folder/1', 'path/to/folder/2')
+metric = logic.CMMD(data_parallel=True, device_ids=[2,3,4,5])
+distance = metric.execute('path/to/folder/1', 'path/to/folder/2')
 print(f'CMMD: {distance:5f}')
 ```
 You can also use path to sampled npz or pth, pre-caculated statics, or even customized Dataset.
