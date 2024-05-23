@@ -20,7 +20,6 @@ class extractor():
         self.data_parallel = data_parallel
         self.model = CLIPVisionModelWithProjection.from_pretrained(model_name).to(device)
         if data_parallel:
-            
             self.model = torch.nn.DataParallel(self.model.to(torch.device('cuda', device_ids[0])), device_ids=device_ids)
         self.processor = CLIPImageProcessor.from_pretrained(model_name)
         self.processor.do_rescale=False
@@ -28,7 +27,7 @@ class extractor():
         self.processor.do_normalize=True
         self.processor.do_resize=False
         self.processor.do_convert_rgb=False
-        self.holder = torch.device('cuda', device_ids[0]) if data_parallel else torch.device('cuda')
+        self.holder = torch.device('cuda', device_ids[0]) if data_parallel else device
         self.model.eval()
         
 

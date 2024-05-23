@@ -8,7 +8,7 @@ if __name__=="__main__":
 
     setuptools.setup(
         name='clip-mmd',
-        version="0.0.1",
+        version="0.0.2",
         author="arr2",
         author_email="whnahengyuan@gmail.com",
         packages=find_packages(),
@@ -16,6 +16,7 @@ if __name__=="__main__":
         license='Apache License 2.0',
         long_description=long_description,
         long_description_content_type="text/markdown",
+        url="https://github.com/arrrr2/clip-mmd",
         install_requires=[
             "torch",
             "torchvision",
